@@ -48,14 +48,6 @@ All data is stored locally in the browser using **LocalStorage**, ensuring speed
 
 ---
 
-## 🔮 Future Enhancements  
-- 🌙 Dark / Light mode toggle  
-- 📈 Monthly & category-wise graphs  
-- 🧾 Export expenses to CSV  
-- ☁️ Cloud sync + login system  
-- 📱 Mobile responsive version  
-
----
 
 ## 🤝 Contributing  
 Contributions, issues, and feature requests are welcome!  
