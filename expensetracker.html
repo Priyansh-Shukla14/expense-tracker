@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expense Tracker</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Poppins', Arial, sans-serif; margin: 0; padding: 0; background: #f4f6f9; color: #222; }
+    header { background: linear-gradient(90deg,#4a90e2,#357ABD); padding: 22px; text-align: center; color: white; font-size: 26px; font-weight: 700; }
+    .container { max-width: 1100px; margin: 28px auto; background: white; padding: 22px; border-radius: 12px; box-shadow: 0 6px 18px rgba(12,34,56,0.08); display: grid; grid-template-columns: 380px 1fr; gap: 20px; }
+    .card { padding: 12px; }
+    input, button, select { width: 100%; padding: 10px 12px; margin-top: 10px; border-radius: 8px; border: 1px solid #d6dce6; font-size: 15px; box-sizing: border-box; }
+    button { background: #4a90e2; color: white; cursor: pointer; transition: 0.15s; border: none; font-weight: 600; }
+    button:hover { transform: translateY(-2px); }
+    h2 { margin-top: 6px; font-size: 18px; border-left: 4px solid #4a90e2; padding-left: 10px; margin-bottom: 8px; }
+    .expense-item { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f0f3f7; font-size: 15px; }
+    .meta { color: #55607a; font-size: 13px }
+    .actions button { margin-left: 8px; padding: 6px 8px; font-size: 13px }
+    .total { font-size: 20px; text-align: right; margin-top: 12px; font-weight: 700 }
+    .small { font-size:13px }
+    .row { display:flex; gap:10px }
+    .row > * { flex:1 }
+    .filter-bar { display:flex; gap:8px; align-items:center; margin-bottom:10px }
+    .chart-wrap { display:flex; gap:12px; margin-top: 14px }
+    .chart-card { background:#fbfdff; padding:12px; border-radius:8px; box-shadow: 0 2px 6px rgba(0,0,0,0.03); flex:1 }
+    .budget-box { background:#f8fbff; padding:10px; border-radius:8px; margin-top:10px; box-shadow: 0 1px 4px rgba(0,0,0,0.03); }
+    .budget-row { display:flex; justify-content:space-between; gap:8px; align-items:center; margin:6px 0; }
+    .danger { color:#ef476f; font-weight:700; }
+    @media (max-width: 980px) { .container { grid-template-columns: 1fr; } .chart-wrap{flex-direction:column} }
+  </style>
+</head>
+<body>
+  <header>Expense Tracker</header>
+
+  <div class="container">
+    <!-- LEFT COLUMN: Controls, Filters, Budget -->
+    <div class="card">
+      <h2>Add / Edit Expense</h2>
+      <input type="text" id="title" placeholder="Expense Title (e.g. Maggi)" />
+      <input type="number" id="amount" placeholder="Amount (₹)" />
+      <select id="category">
+        <option value="Food">Food</option>
+        <option value="Travel">Travel</option>
+        <option value="Shopping">Shopping</option>
+        <option value="Bills">Bills</option>
+        <option value="Education">Education</option>
+        <option value="Other">Other</option>
+      </select>
+      <input type="date" id="date" />
+      <div class="row">
+        <button id="addBtn" onclick="addExpense()">Add Expense</button>
+        <button id="clearBtn" onclick="clearAll()" style="background:#ef476f">Clear All</button>
+      </div>
+
+      <h2 class="small">Filters & Export</h2>
+      <div class="filter-bar">
+        <select id="monthFilter" onchange="onMonthFilterChange()"><option value="all">All months</option></select>
+        <button onclick="downloadCSV()" style="width:auto">Export CSV</button>
+      </div>
+
+      <h2>Summary</h2>
+      <div class="small meta">Total expenses: <span id="count">0</span></div>
+      <div class="total">Total: ₹<span id="total">0.00</span></div>
+
+      <div class="budget-box">
+        <div style="font-weight:700">Monthly Income & Daily Budget</div>
+        <label class="small" style="margin-top:8px">Monthly Income (₹)</label>
+        <input type="number" id="monthlyIncome" placeholder="Enter your income for selected month" />
+        <label class="small" style="margin-top:8px">Savings Goal (₹) — optional</label>
+        <input type="number" id="savingsGoal" placeholder="How much you want to save this month" />
+        <div class="row" style="margin-top:8px">
+          <button onclick="calculateDailyBudget()">Calculate</button>
+          <button onclick="clearBudget()" style="background:#6c757d">Clear</button>
+        </div>
+
+        <div id="budgetResults" style="margin-top:12px">
+          <div class="budget-row"><div class="small">Selected month total spent:</div><div id="spentThisMonth">₹0.00</div></div>
+          <div class="budget-row"><div class="small">Remaining this month (income - spent - savings):</div><div id="remainingThisMonth">₹0.00</div></div>
+          <div class="budget-row"><div class="small">Days in month / days left:</div><div id="daysInfo">0 / 0</div></div>
+          <div class="budget-row"><div class="small">Per-day allowed (based on remaining):</div><div id="perDayAllowed">₹0.00</div></div>
+          <div class="budget-row"><div class="small">Savings left / status:</div><div id="savingsStatus">-</div></div>
+        </div>
+      </div>
+
+      <div style="margin-top:12px; font-size:13px; color:#55607a">
+        Tip: Select a month from the dropdown to calculate budget for that month. If 'All months' is selected, current month will be used.
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN: List & Charts -->
+    <div class="card">
+      <h2>Expense List</h2>
+      <div id="list" style="max-height:420px; overflow:auto;"></div>
+
+      <div class="chart-wrap" style="margin-top:18px">
+        <div class="chart-card">
+          <div style="font-size:13px; margin-bottom:8px; font-weight:600">Category split</div>
+          <canvas id="pieChart" height="200"></canvas>
+        </div>
+        <div class="chart-card">
+          <div style="font-size:13px; margin-bottom:8px; font-weight:600">Monthly totals</div>
+          <canvas id="barChart" height="200"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    // ========== Storage & Data init ==========
+    const STORAGE_KEY = 'expense_tracker_v1_priyansh';
+    let expenses = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]') || [];
+    // ensure every expense has a stable id (for editing/deleting reliably)
+    expenses = expenses.map(e => {
+      if (!e.id) e.id = (Date.now() + Math.floor(Math.random()*10000)).toString();
+      // ensure numeric amount
+      e.amount = Number(e.amount);
+      return e;
+    });
+    let editingId = null;
+
+    // default date input to today
+    const dateInput = document.getElementById('date');
+    dateInput.value = new Date().toISOString().slice(0,10);
+
+    // charts
+    let pieChart = null, barChart = null;
+
+    // ========== Helpers ==========
+    function saveExpenses(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(expenses)); }
+    function daysInMonth(y, m){ return new Date(y, m, 0).getDate(); } // m is 1-12
+    function formatMonthKey(yyyyMm){ // '2025-11' -> 'Nov 2025'
+      const [y,mo] = yyyyMm.split('-'); return new Date(y, mo-1).toLocaleString(undefined,{month:'short', year:'numeric'});
+    }
+    function getCurrentMonthKey(){ const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    function findIndexById(id){ return expenses.findIndex(x => x.id === id); }
+    function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m])); }
+
+    // ========== Month filter builder ==========
+    function buildMonthOptions(){
+      const sel = document.getElementById('monthFilter');
+      const months = new Set();
+      expenses.forEach(e => { if (e.date && e.date.length>=7) months.add(e.date.slice(0,7)); });
+      // also include current month even if no expenses
+      months.add(getCurrentMonthKey());
+      const arr = Array.from(months).sort().reverse();
+      sel.innerHTML = '<option value="all">All months</option>';
+      arr.forEach(m => {
+        const opt = document.createElement('option');
+        opt.value = m;
+        opt.innerText = formatMonthKey(m);
+        sel.appendChild(opt);
+      });
+      // keep selection if already chosen (do not override)
+    }
+
+    // ========== Add / Edit / Delete ==========
+    function addExpense(){
+      const title = document.getElementById('title').value.trim();
+      const amount = parseFloat(document.getElementById('amount').value);
+      const category = document.getElementById('category').value;
+      const date = document.getElementById('date').value;
+      if (!title || !amount || !date) { alert('Please fill title, amount and date'); return; }
+
+      if (editingId){
+        const idx = findIndexById(editingId);
+        if (idx >= 0){
+          expenses[idx] = { ...expenses[idx], title, amount: Number(amount), category, date };
+        }
+        editingId = null;
+        document.getElementById('addBtn').innerText = 'Add Expense';
+      } else {
+        const id = (Date.now() + Math.floor(Math.random()*10000)).toString();
+        expenses.push({ id, title, amount: Number(amount), category, date });
+      }
+      saveExpenses();
+      buildMonthOptions();
+      render();
+      resetForm();
+    }
+
+    function resetForm(){
+      document.getElementById('title').value='';
+      document.getElementById('amount').value='';
+      document.getElementById('category').value='Food';
+      document.getElementById('date').value = new Date().toISOString().slice(0,10);
+      editingId = null;
+      document.getElementById('addBtn').innerText = 'Add Expense';
+    }
+
+    function editExpenseById(id){
+      const idx = findIndexById(id); if (idx < 0) return;
+      const e = expenses[idx];
+      document.getElementById('title').value = e.title;
+      document.getElementById('amount').value = e.amount;
+      document.getElementById('category').value = e.category;
+      document.getElementById('date').value = e.date;
+      editingId = id;
+      document.getElementById('addBtn').innerText = 'Save Changes';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function deleteExpenseById(id){
+      if (!confirm('Delete this expense?')) return;
+      const idx = findIndexById(id); if (idx < 0) return;
+      expenses.splice(idx,1);
+      saveExpenses();
+      buildMonthOptions();
+      render();
+    }
+
+    function clearAll(){
+      if (!confirm('Clear all expenses?')) return;
+      expenses = [];
+      saveExpenses();
+      buildMonthOptions();
+      render();
+    }
+
+    // ========== Rendering ==========
+    function render(){
+      const list = document.getElementById('list'); list.innerHTML = '';
+      const monthFilter = document.getElementById('monthFilter').value;
+      let filtered;
+      if (monthFilter === 'all') filtered = expenses.slice().sort((a,b)=> b.date.localeCompare(a.date));
+      else filtered = expenses.filter(e => e.date.slice(0,7) === monthFilter).sort((a,b)=> b.date.localeCompare(a.date));
+
+      let total = 0;
+      filtered.forEach(e => { total += Number(e.amount || 0); });
+
+      // build list
+      filtered.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'expense-item';
+        row.innerHTML = `
+          <div>
+            <strong>${escapeHtml(e.title)}</strong><div class="meta">${escapeHtml(e.category)} • ${escapeHtml(e.date)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700">₹${Number(e.amount).toFixed(2)}</div>
+            <div class="actions" style="margin-top:6px">
+              <button onclick="editExpenseById('${e.id}')">Edit</button>
+              <button style="background:#ef476f" onclick="deleteExpenseById('${e.id}')">Delete</button>
+            </div>
+          </div>
+        `;
+        list.appendChild(row);
+      });
+
+      document.getElementById('count').innerText = filtered.length;
+      document.getElementById('total').innerText = Number(total).toFixed(2);
+
+      updateCharts(filtered);
+      updateBudgetDisplay(); // budget depends on selected month and spent
+    }
+
+    // ========== Charts ==========
+    function updateCharts(filteredData){
+      // pie: category split for filteredData
+      const catTotals = {};
+      filteredData.forEach(e => { catTotals[e.category] = (catTotals[e.category]||0) + Number(e.amount); });
+      const catLabels = Object.keys(catTotals);
+      const catVals = Object.values(catTotals);
+
+      if (pieChart) pieChart.destroy();
+      pieChart = new Chart(document.getElementById('pieChart').getContext('2d'), {
+        type: 'pie',
+        data: { labels: catLabels, datasets: [{ data: catVals }] },
+        options: { plugins: { legend: { position: 'bottom' } } }
+      });
+
+      // bar: monthly totals for all months present (include current)
+      const monthTotals = {};
+      expenses.forEach(e => {
+        const k = e.date.slice(0,7);
+        monthTotals[k] = (monthTotals[k]||0) + Number(e.amount);
+      });
+      // include current month even if zero
+      const cm = getCurrentMonthKey(); if (!monthTotals[cm]) monthTotals[cm] = monthTotals[cm] || 0;
+
+      const months = Object.keys(monthTotals).sort();
+      const labels = months.map(m => formatMonthKey(m));
+      const data = months.map(m => monthTotals[m]);
+
+      if (barChart) barChart.destroy();
+      barChart = new Chart(document.getElementById('barChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{ label: '₹', data }]
+        },
+        options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+      });
+    }
+
+    // ========== CSV Export ==========
+    function downloadCSV(){
+      if (expenses.length === 0){ alert('No data to export'); return; }
+      const rows = [['Title','Amount','Category','Date']];
+      expenses.forEach(e => rows.push([e.title, e.amount, e.category, e.date]));
+      const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download='expenses.csv'; a.click(); URL.revokeObjectURL(url);
+    }
+
+    // ========== Budget / Daily calculation ==========
+    function getSelectedMonthKey(){
+      const m = document.getElementById('monthFilter').value;
+      if (m && m !== 'all') return m;
+      return getCurrentMonthKey();
+    }
+
+    function calculateDailyBudget(){
+      const income = Number(document.getElementById('monthlyIncome').value || 0);
+      const savingsGoal = Number(document.getElementById('savingsGoal').value || 0);
+      const monthKey = getSelectedMonthKey(); // YYYY-MM
+      const [y,mo] = monthKey.split('-').map(Number);
+      const totalDays = daysInMonth(y, mo);
+      const today = new Date();
+      let daysElapsed = 0;
+      if (today.getFullYear() === y && (today.getMonth()+1) === mo) {
+        daysElapsed = today.getDate() - 1; // days already spent (not counting today)
+      } else if (new Date(y, mo-1) < new Date(today.getFullYear(), today.getMonth(), 1)) {
+        // selected month is in past -> all days elapsed
+        daysElapsed = totalDays;
+      } else {
+        daysElapsed = 0;
+      }
+      const daysLeft = Math.max(0, totalDays - daysElapsed);
+
+      // compute spent in this month
+      const spentThisMonth = expenses
+        .filter(e => e.date.slice(0,7) === monthKey)
+        .reduce((s, e) => s + Number(e.amount), 0);
+
+      // remaining = income - spent - savingsGoal
+      const remaining = income - spentThisMonth - savingsGoal;
+      const perDayAllowed = daysLeft > 0 ? (remaining / daysLeft) : remaining; // if daysLeft 0, show remaining as one-time
+      // status for savings
+      let savingsStatus = '';
+      if (income - spentThisMonth >= savingsGoal) savingsStatus = `Goal OK (₹${(income - spentThisMonth - savingsGoal).toFixed(2)} left after savings)`;
+      else savingsStatus = `<span class="danger">Cannot meet savings (short by ₹${(savingsGoal - (income - spentThisMonth)).toFixed(2)})</span>`;
+
+      // update UI
+      document.getElementById('spentThisMonth').innerText = `₹${spentThisMonth.toFixed(2)}`;
+      document.getElementById('remainingThisMonth').innerText = `₹${remaining.toFixed(2)}`;
+      document.getElementById('daysInfo').innerText = `${totalDays} / ${daysLeft} left`;
+      document.getElementById('perDayAllowed').innerText = daysLeft>0 ? `₹${perDayAllowed.toFixed(2)} per day` : `₹${perDayAllowed.toFixed(2)} (no days left)`;
+      document.getElementById('savingsStatus').innerHTML = savingsStatus;
+    }
+
+    function updateBudgetDisplay(){ // auto-update budgets when data or month changes
+      // if monthlyIncome field has a value, auto-calc results
+      const incomeVal = Number(document.getElementById('monthlyIncome').value || 0);
+      const savingsVal = Number(document.getElementById('savingsGoal').value || 0);
+      if (incomeVal > 0 || savingsVal > 0) calculateDailyBudget();
+      else {
+        // show basic spent and default zeros
+        const monthKey = getSelectedMonthKey();
+        const spentThisMonth = expenses.filter(e => e.date.slice(0,7) === monthKey).reduce((s,e)=> s+Number(e.amount), 0);
+        document.getElementById('spentThisMonth').innerText = `₹${spentThisMonth.toFixed(2)}`;
+        document.getElementById('remainingThisMonth').innerText = `₹0.00`;
+        const [y,mo] = monthKey.split('-').map(Number);
+        const totalDays = daysInMonth(y,mo);
+        document.getElementById('daysInfo').innerText = `${totalDays} / ${totalDays} left`;
+        document.getElementById('perDayAllowed').innerText = `₹0.00`;
+        document.getElementById('savingsStatus').innerText = '-';
+      }
+    }
+
+    function clearBudget(){
+      document.getElementById('monthlyIncome').value = '';
+      document.getElementById('savingsGoal').value = '';
+      updateBudgetDisplay();
+    }
+
+    // ========== UI events ==========
+    function onMonthFilterChange(){
+      render();
+      // Also if monthlyIncome present, recalc for that month
+      updateBudgetDisplay();
+    }
+
+    // ========== Init ==========
+    buildMonthOptions();
+    render();
+
+    // save on unload
+    window.addEventListener('beforeunload', () => saveExpenses());
+    // Rebuild months when storage is changed externally (rare)
+    window.addEventListener('storage', () => { expenses = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); buildMonthOptions(); render(); });
+  </script>
+
+</body>
+</html>
